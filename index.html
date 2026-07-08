@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Letter Sounds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #f5f6f4;
+    --ink: #22304a;
+    --ink-soft: #6b7688;
+    --line: #dfe3de;
+    --tile: #ffffff;
+    --accent: #f2b33d;
+    --accent-ink: #7a5410;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Andika', system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 20px 48px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  header {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  header h1 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  header .hint {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  /* ---- Flashcard ---- */
+  .card {
+    width: 100%;
+    max-width: 760px;
+    background: var(--tile);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 2px rgba(34, 48, 74, 0.04);
+  }
+
+  .card .glyphs {
+    font-size: clamp(4.5rem, 12vw, 7rem);
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 0.15em;
+  }
+
+  .card .glyphs .lower { color: var(--ink-soft); font-weight: 400; }
+
+  .card .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .card .sound {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 28%, white);
+    border-radius: 10px;
+    padding: 2px 14px;
+    width: fit-content;
+  }
+
+  .card .word {
+    font-size: 1.35rem;
+    color: var(--ink);
+  }
+
+  .card .placeholder {
+    color: var(--ink-soft);
+    font-size: 1.15rem;
+    text-align: center;
+  }
+
+  .card.pop { animation: pop 0.35s ease; }
+  @keyframes pop {
+    0% { transform: scale(0.985); }
+    55% { transform: scale(1.008); }
+    100% { transform: scale(1); }
+  }
+
+  /* ---- Letter grid ---- */
+  .grid {
+    width: 100%;
+    max-width: 760px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 12px;
+  }
+
+  button.tile {
+    font-family: inherit;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--ink);
+    background: var(--tile);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    aspect-ratio: 1 / 1;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  button.tile:hover { border-color: var(--ink-soft); }
+  button.tile:active { transform: scale(0.94); }
+  button.tile:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  button.tile.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card.pop { animation: none; }
+    button.tile { transition: none; }
+  }
+
+  @media (max-width: 520px) {
+    .card { flex-direction: column; gap: 12px; min-height: 200px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; }
+    button.tile { font-size: 1.6rem; border-radius: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Letter Sounds</h1>
+  <div class="hint">Tap a letter, or press it on the keyboard</div>
+</header>
+
+<div class="card" id="card">
+  <div class="placeholder" id="placeholder">Pick a letter to hear its sound</div>
+  <div class="glyphs" id="glyphs" hidden>
+    <span class="upper" id="upper"></span><span class="lower" id="lower"></span>
+  </div>
+  <div class="meta" id="meta" hidden>
+    <div class="sound" id="sound"></div>
+    <div class="word" id="word"></div>
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+  // For each letter: how the sound is displayed, how it's spoken by TTS, and an example word.
+  const LETTERS = {
+    A: { show: '/a/',  say: 'ah',   word: 'apple' },
+    B: { show: '/b/',  say: 'buh',  word: 'ball' },
+    C: { show: '/k/',  say: 'kuh',  word: 'cat' },
+    D: { show: '/d/',  say: 'duh',  word: 'dog' },
+    E: { show: '/e/',  say: 'eh',   word: 'egg' },
+    F: { show: '/f/',  say: 'fuh',  word: 'fish' },
+    G: { show: '/g/',  say: 'guh',  word: 'goat' },
+    H: { show: '/h/',  say: 'huh',  word: 'hat' },
+    I: { show: '/i/',  say: 'ih',   word: 'igloo' },
+    J: { show: '/j/',  say: 'juh',  word: 'jam' },
+    K: { show: '/k/',  say: 'kuh',  word: 'kite' },
+    L: { show: '/l/',  say: 'luh',  word: 'lion' },
+    M: { show: '/m/',  say: 'muh',  word: 'moon' },
+    N: { show: '/n/',  say: 'nuh',  word: 'nest' },
+    O: { show: '/o/',  say: 'aw',   word: 'octopus' },
+    P: { show: '/p/',  say: 'puh',  word: 'pig' },
+    Q: { show: '/kw/', say: 'kwuh', word: 'queen' },
+    R: { show: '/r/',  say: 'ruh',  word: 'rain' },
+    S: { show: '/s/',  say: 'suh',  word: 'sun' },
+    T: { show: '/t/',  say: 'tuh',  word: 'top' },
+    U: { show: '/u/',  say: 'uh',   word: 'umbrella' },
+    V: { show: '/v/',  say: 'vuh',  word: 'van' },
+    W: { show: '/w/',  say: 'wuh',  word: 'water' },
+    X: { show: '/ks/', say: 'ks',   word: 'fox' },
+    Y: { show: '/y/',  say: 'yuh',  word: 'yes' },
+    Z: { show: '/z/',  say: 'zuh',  word: 'zebra' }
+  };
+
+  const grid = document.getElementById('grid');
+  const card = document.getElementById('card');
+  const placeholder = document.getElementById('placeholder');
+  const glyphs = document.getElementById('glyphs');
+  const meta = document.getElementById('meta');
+  const upperEl = document.getElementById('upper');
+  const lowerEl = document.getElementById('lower');
+  const soundEl = document.getElementById('sound');
+  const wordEl = document.getElementById('word');
+
+  // Build the grid
+  for (const letter of Object.keys(LETTERS)) {
+    const btn = document.createElement('button');
+    btn.className = 'tile';
+    btn.textContent = letter;
+    btn.setAttribute('aria-label', 'Letter ' + letter);
+    btn.addEventListener('click', () => play(letter, btn));
+    grid.appendChild(btn);
+  }
+
+  // Keyboard support: press A–Z
+  document.addEventListener('keydown', (e) => {
+    const key = e.key.toUpperCase();
+    if (LETTERS[key] && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      const btn = [...grid.children].find(b => b.textContent === key);
+      play(key, btn);
+    }
+  });
+
+  // ---- Audio ----
+  // Plays pre-generated mp3 clips from /audio — no speech synthesis,
+  // no browser quirks. Works anywhere <audio> works.
+  const player = new Audio();
+  player.preload = 'auto';
+
+  function warnNoAudio(msg) {
+    let bar = document.getElementById('audiowarn');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'audiowarn';
+      bar.style.cssText = 'max-width:760px;width:100%;margin-bottom:16px;padding:10px 16px;' +
+        'border-radius:10px;background:#fdecec;color:#8a2f2f;font-size:0.9rem;';
+      document.body.insertBefore(bar, card);
+    }
+    bar.textContent = msg;
+  }
+
+  function clearWarn() {
+    const bar = document.getElementById('audiowarn');
+    if (bar) bar.remove();
+  }
+
+  function playClip(letter) {
+    player.pause();
+    player.src = 'audio/' + letter.toLowerCase() + '.mp3';
+    player.currentTime = 0;
+    player.play().then(clearWarn).catch(err => {
+      if (location.protocol === 'file:') {
+        warnNoAudio('Audio files could not load from a locally opened file. ' +
+          'Run "npx serve ." in the project folder, or open the deployed Vercel URL.');
+      } else {
+        warnNoAudio('Audio was blocked or failed to load (' + err.name + '). ' +
+          'Check that this tab is not muted (right-click the tab), then click a letter again.');
+      }
+    });
+  }
+
+  let activeBtn = null;
+
+  function play(letter, btn) {
+    const d = LETTERS[letter];
+
+    // Update flashcard
+    placeholder.hidden = true;
+    glyphs.hidden = false;
+    meta.hidden = false;
+    upperEl.textContent = letter;
+    lowerEl.textContent = letter.toLowerCase();
+    soundEl.textContent = d.show;
+    wordEl.textContent = d.word;
+
+    card.classList.remove('pop');
+    void card.offsetWidth; // restart animation
+    card.classList.add('pop');
+
+    // Highlight tile
+    if (activeBtn) activeBtn.classList.remove('active');
+    if (btn) { btn.classList.add('active'); activeBtn = btn; }
+
+    // Play the pre-generated clip: letter name → sound ×2 → example word
+    playClip(letter);
+  }
+</script>
+
+</body>
+</html>
